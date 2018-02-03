@@ -2,61 +2,102 @@ require_relative 'genotype'
 require_relative 'phenotype'
 require_relative 'dot'
 
-INPUTS = [[ 1, -1,   1],
-          [-1,  1,   1],
-          [ 1,  1,  -1],
-          [-1, -1,  -1]]
 
-inital = (1..24).map { Genotype.new inputs: 2, outputs: 1 }
+XOR= [[1, 0, 1],
+      [0, 1, 1],
+      [1, 1, 0],
+      [0, 0, 0]]
 
-$archtypes = Hash.new([])
+AND= [[1, 0, 0],
+      [0, 1, 0],
+      [1, 1, 1],
+      [0, 0, 0]]
+
+INPUTS = XOR
+
+$archtypes = []
+
+class Numeric
+  def sign
+    self < 0 ? :'+' : :'-'
+  end
+end
 
 def classify(genome)
-  archtype = $archtypes.keys.find {|atype| (atype <=> genome) < 0.5 }
+  archtype = $archtypes.find {|atype| (atype <=> genome) < 0.4 }
   unless archtype.nil?
-    $archtypes[archtype] << genome
     return archtype
   else
-    $archtypes[genome] = [genome]
+    $archtypes << genome
     return genome
   end
 end
 
+def sigmoid(v) 
+  v > 0 ? 1.0 : -1.0
+end
+
 def fitness(genome)
-  INPUTS.inject(0) do |score, i|
-    phenotype = Phenotype::Network.new genome: genome
-    phenotype.eval(i[0..1])[0] == i[2] ? score + 1 : score
+  phenotype = Phenotype::Network.new genotype: genome
+  INPUTS.inject(4) do |score, i|
+    res = phenotype.eval(i[0..1])[0]
+    score -= (i[2] - res) ** 2
   end
 end
 
 def selection(pop, k)
-  best = nil
-  k.times do
-    ind = pop[rand(0...pop.size)]
-    best = ind if best.nil? or fitness(best) < fitness(ind)
+  top = pop.take(k)
+  top.sample
+end
+
+popsize = 10
+inital = (1..popsize).map { Genotype.new inputs: 2, outputs: 1 }
+populations = Hash.new { |hsh, key| hsh[key] = [] }
+
+inital.each do |g|
+  c = classify(g)
+  populations[classify(g)] << g
+end
+
+initial_best = inital.sort_by {|b| fitness(b)}.last
+p = Phenotype::Network.new genotype: initial_best
+puts "Fitness #{fitness(initial_best)}"
+INPUTS.each do |i|
+  puts "#{i.inspect} #{p.eval(i[0..1])[0]}"
+end
+
+400.times do
+  new_pops = Hash.new { |hsh, key| hsh[key] = [] }
+  populations.each_pair do |arch, pop|
+    scored_pop = pop.sort_by {|b| fitness(b) }.reverse
+
+    while (new_pops[arch].size < popsize)
+      p1 = selection(scored_pop, 4)
+      p2 = selection(scored_pop, 4)
+      c = p1 | p2
+      c_arch = classify(c)
+      new_pops[arch] << p1 unless new_pops[arch].include? p1
+      if c_arch == arch
+        new_pops[c_arch] << c
+      elsif new_pops[c_arch].empty?
+        new_pops[c_arch] << c
+      end
+    end
   end
-  best
+  populations = new_pops
 end
 
-pop = inital
-
-200.times do
-  new_pop = []
-  while (new_pop.size < pop.size)
-    p1 = selection(pop, 2)
-    p2 = selection(pop, 2)
-    c = p1 | p2
-    new_pop += [p1, c]
+populations.each_value do |pop|
+  pop_sorted = pop.sort_by { |b| fitness(b) }
+  phenotype = Phenotype::Network.new genotype: pop_sorted.last
+  puts "Fitness #{fitness(pop.last)}"
+  INPUTS.each do |i|
+    puts "#{pop.last.inspect} #{i[0..1].inspect} #{i[2]}  = #{phenotype.eval(i[0..1])[0]}"
   end
-  pop = new_pop
-end
-puts inital.inspect
-puts pop.inspect
-
-pop.each do |g|
-  puts "#{g.inspect} #{fitness(g)}"
+  pop_sorted.last.show_graph
+  gets
 end
 
-pop.first.show_graph
+
 
 

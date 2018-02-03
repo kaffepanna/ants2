@@ -31,11 +31,14 @@ digraph G {
   end
 
   def show_graph
-    fork do
-      dot_read, dot_write = IO.popen("dot -Tpng | feh -", "w") {|io|
+    #fork do
+      IO.popen("dot -Tpng -O", "w") { |io|
         io.write(to_dot)
       }
-    end
+      #dot_read, dot_write = IO.popen("dot -Tpng | feh -", "w") {|io|
+      #  io.write(to_dot)
+      #}
+    #end
   end
 end
 

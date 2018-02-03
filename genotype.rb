@@ -54,19 +54,23 @@ class Genotype
     @connections = []
     @inputs.each do |input|
       @outputs.each do |output|
-        @connections << ConnectionGene.new(input, output, rand(-1.0..1.0))
+        @connections << ConnectionGene.new(input, output, rand(-4.0..4.0))
       end
     end
     instance_eval &block if block_given?
   end
 
   def mutate!
-    @connections.select { |c| c.enabled? }.each do |c|
-      1.in(800) { add_node(c) }
-      2.in(150) { mutate_weight(c) }
-    end
+    1.in(300) { 
+      add_node(@connections.select {|c| c.enabled?}.sample)
+    }
 
-    @nodes.each {|n| 1.in(800) { mutate_add_connection(n) } }
+    2.in(100) { mutate_weight @connections.select {|c| c.enabled? }.sample}
+
+    1.in(300) {
+      mutate_add_connection(@nodes.to_a.sample)
+    }
+    self
   end
 
   def |(gen2)
@@ -107,25 +111,26 @@ class Genotype
 
   private
   def mutate_add_connection(node)
-    n2 = rand(@nodes)
+    n2 = rand(@outputs.last...@nodes.last)
+    return if n2 == nil || n2 == node
     p = @connections.find {|c| c.from == node && c.to == n2 }
     if p
       p.enable!
     else
-      @connections << ConnectionGene.new(node, n2, rand(-1.0..1.0))
+      @connections << ConnectionGene.new(node, n2, rand(-4.0..4.0))
     end
   end
 
   def mutate_weight(connection)
-    connection.weight += rand(-0.2..0.2)
-    connection.weight = -1.0 if connection.weight > 1.0
-    connection.weight = 1.0 if connection.weight < -1.0
+    connection.weight += rand(-0.1..0.1)
+    #connection.weight = 1.0 if connection.weight > 1.0
+    #connection.weight = -1.0 if connection.weight < -1.0
   end
 
   def add_node connection
     connection.disable!
     @nodes = (@nodes.first...(@nodes.last+1))
-    @connections << ConnectionGene.new(connection.from, @nodes.max, 1.0)
+    @connections << ConnectionGene.new(connection.from, @nodes.max, rand(-4.0..4.0))
     @connections << ConnectionGene.new(@nodes.max, connection.to, connection.weight)
   end
 
