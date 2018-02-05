@@ -41,7 +41,7 @@ class Genotype
   DefaultArgs = { inputs: 4, outputs: 2 }
   C1 = 1.0
   C2 = 1.0
-  C3 = 0.1
+  C3 = 0.08
 
   def initialize args={}, &block
     args = DefaultArgs.merge(args)
@@ -57,17 +57,17 @@ class Genotype
         @connections << ConnectionGene.new(input, output, rand(-4.0..4.0))
       end
     end
-    instance_eval &block if block_given?
+    instance_eval block if block_given?
   end
 
   def mutate!
-    1.in(300) { 
+    2.in(100) { 
       add_node(@connections.select {|c| c.enabled?}.sample)
     }
 
-    2.in(100) { mutate_weight @connections.select {|c| c.enabled? }.sample}
+    4.in(100) { mutate_weight @connections.select {|c| c.enabled? }.sample}
 
-    1.in(300) {
+    2.in(100) {
       mutate_add_connection(@nodes.to_a.sample)
     }
     self
@@ -112,7 +112,7 @@ class Genotype
   private
   def mutate_add_connection(node)
     n2 = rand(@outputs.last...@nodes.last)
-    return if n2 == nil || n2 == node
+    return if n2 == nil || n2 == node || @nodes.to_a.index(n2) < @nodes.to_a.index(node)
     p = @connections.find {|c| c.from == node && c.to == n2 }
     if p
       p.enable!
@@ -122,7 +122,7 @@ class Genotype
   end
 
   def mutate_weight(connection)
-    connection.weight += rand(-0.1..0.1)
+    connection.weight += rand(-0.2..0.2)
     #connection.weight = 1.0 if connection.weight > 1.0
     #connection.weight = -1.0 if connection.weight < -1.0
   end

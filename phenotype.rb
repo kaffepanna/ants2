@@ -8,7 +8,7 @@ module Phenotype
       id: 1,
       value: 0,
       #transfer: proc {|v| v > 0 ? 1.0 : -1.0 }
-      transfer: proc { |v| 1.0 / (1.0 + Math::E**(-v)) }
+      transfer: proc { |v| v / (v + Math::E**(-v)) }
       #transfer: proc { |x| Math::tanh(x) }
     }
 

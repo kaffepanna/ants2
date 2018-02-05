@@ -26,19 +26,31 @@ digraph G {
       label = "Output Layer";
     }
   #{ conns.map {|c| "#{c.from} -> #{c.to}[label=#{c.weight.round(2)}]" }.join("\n")}
-    }
+
+    Legend [shape=none, margin=0, label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+     <TR>
+      <TD COLSPAN="2"><B>Legend</B></TD>
+     </TR>
+     <TR>
+      <TD>Foo</TD>
+      <TD><FONT COLOR="red">Foo</FONT></TD>
+     </TR>
+    </TABLE>
+   >];
+  }
   EOF
   end
 
   def show_graph
-    #fork do
-      IO.popen("dot -Tpng -O", "w") { |io|
-        io.write(to_dot)
-      }
-      #dot_read, dot_write = IO.popen("dot -Tpng | feh -", "w") {|io|
+    fork do
+      #IO.popen("dot -Tpng -O", "w") { |io|
       #  io.write(to_dot)
       #}
-    #end
+      dot_read, dot_write = IO.popen("dot -Tpng | feh -", "w") {|io|
+        io.write(to_dot)
+      }
+    end
   end
 end
 
