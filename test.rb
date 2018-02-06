@@ -24,11 +24,12 @@ class Numeric
   end
 end
 
-def to_dot(node, data, result, fitness)
-  inputs = node.inputs
-  outputs = node.outputs
-  conns = node.connections.select { |c| c.enabled? }
-  hidden = node.nodes.to_a[node.outputs.last..-1] || []
+def to_dot(g, data, result, fitness)
+  inputs = g.inputs
+  outputs = g.outputs
+  hidden = g.hidden
+  bias = g.bias
+  conns = g.connections.select { |c| c.enabled? }
   <<-EOF
 digraph G {
     rankdir=LR
@@ -37,13 +38,14 @@ digraph G {
     subgraph {
       rank = same;
       node [style=solid,color=blue4, shape=circle];
-      #{inputs.to_a.join(';')};
       label = "Input Layer";
+      #{inputs.to_a.join(';')};
+      #{bias} [label = "b"];
     }
     subgraph {
-      node [style=solid,color=red2, shape=circle];
       rank = same;
-      #{(hidden).join(';')+(hidden.empty? ? "" : ";")}
+      node [style=solid,color=red2, shape=circle];
+      #{(hidden).to_a.join(';')+(hidden.to_a.empty? ? "" : ";")}
       label = "Hidden Layer";
     }
     subgraph {
@@ -108,7 +110,7 @@ end
 
 winners = []
 popsize = 40
-iterations = 150
+iterations = 100
 inital = (1..popsize).map { Genotype.new inputs: 2, outputs: 1 }
 populations = Hash.new { |hsh, key| hsh[key] = [] }
 
@@ -146,7 +148,7 @@ iterations.times do |i|
 end
 print "\n"
 
-latest = winners.last(10)
+latest = winners.last(1)
 latest.each_index do |i|
   FileUtils.mkdir(File.join(root, i.to_s))
   latest[i].each do |winner|

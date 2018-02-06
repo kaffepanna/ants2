@@ -6,4 +6,11 @@ class Numeric
     return yield if result && block_given?
     result
   end
+
+  def chance &block
+    return false if self > 1.0
+    result = rand <= self.to_f
+    return yield if result && block_given?
+    result
+  end
 end

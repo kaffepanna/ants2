@@ -37,38 +37,57 @@ class Genotype
       Inovations[conn.hash] = (Inovations.values.max || 0) + 1
   end
 
-  attr_reader :connections, :inputs, :outputs, :nodes, :id
-  DefaultArgs = { inputs: 4, outputs: 2 }
+  attr_reader :connections, :hidden, :inputs, :outputs, :nodes, :id, :bias
+  DefaultArgs = { inputs: 2,
+                  outputs: 1,
+                  weight_span: (-4.0..4.0),
+                  mutation: {
+                    weights_modify_rate: 0.05,
+                    weights_swap_rate: 0.01,
+                    connections_rate: 0.01,
+                    nodes_rate: 0.01
+                  }
+                }
   C1 = 1.0
   C2 = 1.0
   C3 = 0.08
 
-  def initialize args={}, &block
-    args = DefaultArgs.merge(args)
-    @@ids ||= 0
-    @id = (@@ids+=1)
-    @hidden = {}
-    @inputs = (0...args[:inputs])
-    @outputs = (@inputs.last...(@inputs.last+args[:outputs]))
-    @nodes = (@inputs.first...(@outputs.last))
+  def initialize args={}
+    @settings = DefaultArgs.merge(args)
+    @id = @@ids ||= 0
+    @@ids+=1
+    @inputs = (0...@settings[:inputs])
+    @outputs = (@settings[:inputs]...(@settings[:inputs]+@settings[:outputs]))
+    @bias = @settings[:inputs] + @settings[:outputs]
+    @hidden = ((@bias+1)...(@bias+1))
+    
     @connections = []
     @inputs.each do |input|
       @outputs.each do |output|
-        @connections << ConnectionGene.new(input, output, rand(-4.0..4.0))
+        @connections << ConnectionGene.new(input, output, rand(@settings[:weight_span]))
       end
     end
-    instance_eval block if block_given?
+
+    @outputs.each do |output|
+      @connections << ConnectionGene.new(bias, output, rand(@settings[:weight_span]))
+    end
+  end
+  
+  def nodes
+    (@inputs.first...@hidden.last)
   end
 
   def mutate!
-    2.in(100) { 
+    @settings[:mutation][:nodes_rate].chance {
       add_node(@connections.select {|c| c.enabled?}.sample)
     }
 
-    4.in(100) { mutate_weight @connections.select {|c| c.enabled? }.sample}
+    @settings[:mutation][:weights_modify_rate].chance {
+      mutate_weight @connections.select {|c| c.enabled? }.sample
+    }
 
-    2.in(100) {
-      mutate_add_connection(@nodes.to_a.sample)
+    @settings[:mutation][:connections_rate].chance {
+      mutate_add_connection(nodes.to_a.sample)
     }
     self
   end
@@ -77,7 +96,7 @@ class Genotype
     gen1 = self
     offspring = Genotype.new inputs: self.inputs.size, outputs: self.outputs.size
     offspring.connections = (gen1.connections | gen2.connections).map {|c| c.dup }
-    offspring.nodes = [gen1.nodes, gen2.nodes].max_by {|r| r.size }
+    offspring.hidden = [gen1.hidden, gen2.hidden].max_by {|r| r.size }
     offspring.mutate!
     return offspring
   end
@@ -100,8 +119,9 @@ class Genotype
   end
 
   protected
-  def nodes=(n)
-    @nodes = n
+
+  def hidden=(h)
+    @hidden = h
   end
 
   def connections=(conns)
@@ -111,31 +131,37 @@ class Genotype
 
   private
   def mutate_add_connection(node)
-    n2 = rand(@outputs.last...@nodes.last)
-    return if n2 == nil || n2 == node || @nodes.to_a.index(n2) < @nodes.to_a.index(node)
+    n2 = rand(nodes)
+    return if n2 == bias
+    return if n2 == node
+    return if @outputs.include?(node)
+    return if @inputs.include?(n2) && @inputs.include?(node)
+    return if @hidden.include?(n2) && @hidden.include?(node) # only ff
     p = @connections.find {|c| c.from == node && c.to == n2 }
     if p
       p.enable!
     else
-      @connections << ConnectionGene.new(node, n2, rand(-4.0..4.0))
+      @connections << ConnectionGene.new(node, n2, rand(@settings[:weight_span]))
     end
   end
 
   def mutate_weight(connection)
+    # TODO: Clamp to weight_span
     connection.weight += rand(-0.2..0.2)
-    #connection.weight = 1.0 if connection.weight > 1.0
-    #connection.weight = -1.0 if connection.weight < -1.0
+    @settings[:mutation][:weights_swap_rate].chance {
+      connection.weight = rand(@settings[:weight_span])
+    }
   end
 
   def add_node connection
+    return if connection.from == bias
+    return if @hidden.include?(connection.from)
+    return if @hidden.include?(connection.to)
     connection.disable!
-    @nodes = (@nodes.first...(@nodes.last+1))
-    @connections << ConnectionGene.new(connection.from, @nodes.max, rand(-4.0..4.0))
-    @connections << ConnectionGene.new(@nodes.max, connection.to, connection.weight)
-  end
-
-  def next_node_id
-    @nodes.map { |n| n.id }.max + 1
+    @hidden = (@hidden.first...(@hidden.last+1))
+    @connections << ConnectionGene.new(@bias, nodes.max, rand(@settings[:weight_span]))
+    @connections << ConnectionGene.new(connection.from, nodes.max, rand(@settings[:weight_span]))
+    @connections << ConnectionGene.new(nodes.max, connection.to, connection.weight)
   end
 
 end

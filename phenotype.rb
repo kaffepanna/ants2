@@ -65,7 +65,6 @@ module Phenotype
 
     def initialize attr = {}
       attr = DefaultArgs.merge(attr)
-      @bias = Node.new(id: "bias", value: 1)
       @genotype = attr[:genotype]
       @nodes = @genotype.nodes.map { |n| Node.new(id: n) }
       @genotype.connections.each {|c|
@@ -77,9 +76,7 @@ module Phenotype
         n << [1.0, proc { @inputs[i]}]
       }
 
-      nodes[@genotype.inputs.last...@genotype.nodes.last].each {|n|
-        n << [1.0, proc { 1.0 }]
-      }
+      nodes[@genotype.bias] << [1.0, proc { 1.0 }]
     end
 
     def eval(args)

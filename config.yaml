@@ -1,0 +1,5 @@
+genome:
+  inputs: 2
+  outputs: 1
+  weight_span: !ruby/range -4.0..4.0
+
